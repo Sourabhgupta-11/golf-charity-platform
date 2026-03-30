@@ -9,7 +9,7 @@ export interface Profile {
   subscription_plan?: 'monthly' | 'yearly'
   subscription_id?: string
   subscription_ends_at?: string
-  stripe_customer_id?: string
+  razorpay_customer_id?: string
   charity_id?: string
   charity_percentage: number
   created_at: string

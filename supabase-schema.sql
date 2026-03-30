@@ -18,9 +18,9 @@ CREATE TABLE public.profiles (
     subscription_status IN ('active', 'inactive', 'cancelled', 'past_due')
   ),
   subscription_plan TEXT CHECK (subscription_plan IN ('monthly', 'yearly')),
-  subscription_id TEXT, -- Stripe subscription ID
+  subscription_id TEXT, -- razorpay subscription ID
   subscription_ends_at TIMESTAMPTZ,
-  stripe_customer_id TEXT UNIQUE,
+  razorpay_customer_id TEXT UNIQUE,
   charity_id UUID,
   charity_percentage INTEGER DEFAULT 10 CHECK (charity_percentage BETWEEN 10 AND 100),
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -118,7 +118,7 @@ CREATE TABLE public.charity_contributions (
   charity_id UUID NOT NULL REFERENCES public.charities(id),
   amount DECIMAL(12,2) NOT NULL,
   contribution_month DATE NOT NULL,
-  stripe_payment_id TEXT,
+  razorpay_payment_id TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -126,7 +126,7 @@ CREATE TABLE public.charity_contributions (
 CREATE TABLE public.subscription_events (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES public.profiles(id),
-  stripe_event_id TEXT UNIQUE,
+  razorpay_event_id TEXT UNIQUE,
   event_type TEXT NOT NULL,
   payload JSONB,
   created_at TIMESTAMPTZ DEFAULT NOW()

@@ -76,7 +76,7 @@ export default async function CharityDetailPage({ params }: { params: { slug: st
 
               {charity.website_url && (
                 <a href={charity.website_url} target="_blank" rel="noopener noreferrer"
-                  className="glass rounded-2xl p-4 flex items-center gap-3 hover:border-white/20 transition-all group block">
+                  className="glass rounded-2xl p-4 flex items-center gap-3 hover:border-white/20 transition-all group">
                   <ExternalLink size={16} className="text-white/40 group-hover:text-lime transition-colors" />
                   <span className="text-white/60 text-sm group-hover:text-white transition-colors">Visit website</span>
                 </a>

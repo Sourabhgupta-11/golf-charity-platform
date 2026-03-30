@@ -88,7 +88,7 @@ export default function Pricing() {
             </Link>
 
             <p className="text-white/30 text-xs mt-6">
-              Secure payment via Stripe · 10% minimum goes to your chosen charity
+              Secure payment via Razorpay · 10% minimum goes to your chosen charity
             </p>
           </div>
         </div>

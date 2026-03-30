@@ -6,7 +6,7 @@ const items = [
   'Monthly Prize Draw',
   'Cancel Anytime',
   'Jackpot Rolls Over',
-  'Secure Stripe Payments',
+  'Secure Razorpay Payments',
 ]
 
 export default function Marquee() {

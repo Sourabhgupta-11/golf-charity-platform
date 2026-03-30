@@ -48,7 +48,7 @@ export default function Footer() {
             © {new Date().getFullYear()} Greenloop. All rights reserved.
           </p>
           <p className="text-white/20 text-xs text-center md:text-right">
-            Payments processed securely by Stripe. This platform operates in compliance with UK gambling regulations.
+            Payments processed securely by Razorpay. This platform operates in compliance with UK gambling regulations.
           </p>
         </div>
       </div>

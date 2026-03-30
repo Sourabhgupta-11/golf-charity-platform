@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint"
   },
+
   "dependencies": {
     "next": "14.2.0",
     "react": "^18.3.0",
@@ -15,22 +16,23 @@
     "@supabase/supabase-js": "^2.43.0",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
 
-    "recharts": "^2.12.7",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
-    "nodemailer": "^6.9.13",
 
-    "@stripe/stripe-js": "^3.4.0",
-    "stripe": "^15.5.0",
-    
-    "framer-motion": "^11.2.0",  
-    "lucide-react": "^0.379.0",  
+    "razorpay": "^2.9.2",
+    "crypto": "^1.0.1",
+
+    "framer-motion": "^11.2.0",
+    "lucide-react": "^0.379.0",
     "clsx": "^2.1.1",
     "tailwind-merge": "^2.3.0",
     "react-hot-toast": "^2.4.1",
     "date-fns": "^3.6.0",
+    "recharts": "^2.12.7",
+    "nodemailer": "^6.9.13",
     "react-dropzone": "^14.2.3"
   },
+
   "devDependencies": {
     "@types/node": "^20.12.12",
     "@types/react": "^18.3.2",
@@ -38,6 +40,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/nodemailer": "^6.4.15",
+    "@types/razorpay": "^1.0.0",
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.3",

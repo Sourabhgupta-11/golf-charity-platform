@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
     // ── Log the payment event ─────────────────────────────────────
     await db.from('subscription_events').insert({
-      stripe_event_id: razorpay_payment_id,      // reuse column for payment ID
+      razorpay_event_id: razorpay_payment_id,      // reuse column for payment ID
       event_type: 'razorpay.payment.captured',
       payload: {
         order_id: razorpay_order_id,
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
         charity_id: profile.charity_id,
         amount,
         contribution_month: now.toISOString().slice(0, 8) + '01',
-        stripe_payment_id: razorpay_payment_id,
+        razorpay_payment_id: razorpay_payment_id,
       })
 
       // Increment charity total_raised

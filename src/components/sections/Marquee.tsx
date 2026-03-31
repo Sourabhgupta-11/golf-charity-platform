@@ -1,6 +1,6 @@
 const items = [
   'Golf · Give · Win',
-  '£2,400 Monthly Prize Pool',
+  '₹2.52 lakh Monthly Prize Pool',
   'Support Your Chosen Charity',
   'Stableford Score Tracking',
   'Monthly Prize Draw',

@@ -54,7 +54,7 @@ export default function Pricing() {
           <div className="relative z-10">
             <div className="flex items-end justify-center gap-2 mb-2">
               <span className="text-7xl font-black text-white" style={{ fontFamily: 'var(--font-display)' }}>
-                £{billing === 'monthly' ? '9.99' : '89.99'}
+                ₹{billing === 'monthly' ? '829' : '7499'}
               </span>
               <span className="text-white/40 text-lg mb-3">/{billing === 'monthly' ? 'mo' : 'yr'}</span>
             </div>
@@ -62,7 +62,7 @@ export default function Pricing() {
             {billing === 'yearly' && (
               <p className="text-lime text-sm mb-8">
                 <Zap size={12} className="inline mr-1" />
-                Equivalent to £7.50/mo — save £29.89 a year
+                Equivalent to ₹788/mo — save ₹3,138 a year
               </p>
             )}
 
@@ -84,7 +84,7 @@ export default function Pricing() {
               href={`/subscribe?plan=${billing}`}
               className="inline-flex items-center gap-2 bg-lime text-ink font-bold text-lg px-12 py-4 rounded-full hover:bg-lime/90 transition-all hover:shadow-2xl hover:shadow-lime/30"
             >
-              Get Started — £{billing === 'monthly' ? '9.99' : '89.99'}
+              Get Started — ₹{billing === 'monthly' ? '829' : '7499'}
             </Link>
 
             <p className="text-white/30 text-xs mt-6">

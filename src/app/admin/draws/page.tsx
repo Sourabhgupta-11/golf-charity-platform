@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { supabaseAdmin } from '@/lib/supabase'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
@@ -23,11 +22,25 @@ export default function AdminDrawsPage() {
   const [drawMonth, setDrawMonth] = useState(new Date().toISOString().slice(0, 7) + '-01')
   const [simResult, setSimResult] = useState<{ numbers: number[]; pools: ReturnType<typeof calculatePrizePools> } | null>(null)
 
-  const fetchDraws = async () => {
-    const { data } = await supabase.from('draws').select('*').order('draw_month', { ascending: false }).limit(12)
-    setDraws((data as Draw[]) || [])
-    setLoading(false)
+const fetchDraws = async () => {
+  setLoading(true);
+
+  const { data, error } = await supabase
+    .from('draws')
+    .select('*')
+    .order('draw_month', { ascending: false })
+    .limit(12);
+
+  if (error) {
+    console.error("Draws fetch error:", error);
+    setDraws([]);
+    setLoading(false);
+    return;
   }
+
+  setDraws((data as Draw[]) || []);
+  setLoading(false);
+};
 
   useEffect(() => { fetchDraws() }, [])
 
@@ -46,8 +59,13 @@ export default function AdminDrawsPage() {
       }
 
       // Get active subscriber count to estimate pool
-      const { count } = await supabase.from('profiles')
-        .select('*', { count: 'exact', head: true }).eq('subscription_status', 'active')
+      const { data: activeUsers } = await supabase
+  .from('profiles')
+  .select('id')
+  .eq('subscription_status', 'active');
+
+const count = activeUsers?.length || 0;
+
       const monthlyRevenue = (count || 0) * 9.99 * 0.7 // 70% to prize pool
       const pools = calculatePrizePools(monthlyRevenue)
 
@@ -187,7 +205,7 @@ export default function AdminDrawsPage() {
               ].map(t => (
                 <div key={t.label} className="bg-white/5 rounded-xl p-3 text-center">
                   <p className="text-white/40 text-xs mb-1">{t.label}</p>
-                  <p className="text-lime font-bold text-sm font-mono">£{t.amount.toFixed(2)}</p>
+                  <p className="text-lime font-bold text-sm font-mono">₹{t.amount.toFixed(2)}</p>
                 </div>
               ))}
             </div>
@@ -238,7 +256,7 @@ export default function AdminDrawsPage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-lime font-mono font-bold">£{Number(draw.prize_pool_total).toFixed(2)}</p>
+                  <p className="text-lime font-mono font-bold">₹{Number(draw.prize_pool_total).toFixed(2)}</p>
                   <p className="text-white/30 text-xs">prize pool</p>
                 </div>
               </div>

@@ -26,20 +26,41 @@ export default function AdminOverviewPage() {
   useEffect(() => {
     const fetchStats = async () => {
       const [
-        { count: totalUsers },
-        { count: activeSubscribers },
-        { data: draws },
-        { data: contributions },
-        { count: totalDraws },
-        { count: pendingWinners },
-      ] = await Promise.all([
-        supabase.from('profiles').select('*', { count: 'exact', head: true }),
-        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('subscription_status', 'active'),
-        supabase.from('draws').select('draw_month, prize_pool_total').eq('status', 'published').order('draw_month', { ascending: true }).limit(6),
-        supabase.from('charity_contributions').select('amount'),
-        supabase.from('draws').select('*', { count: 'exact', head: true }),
-        supabase.from('winners').select('*', { count: 'exact', head: true }).eq('verification_status', 'pending'),
-      ])
+  { data: users },
+  { data: activeUsers },
+  { data: draws },
+  { data: contributions },
+  { data: allDraws },
+  { data: pendingWinnersData },
+] = await Promise.all([
+  supabase.from('profiles').select('id'),
+
+  supabase
+    .from('profiles')
+    .select('id')
+    .eq('subscription_status', 'active'),
+
+  supabase
+    .from('draws')
+    .select('draw_month, prize_pool_total')
+    .eq('status', 'published')
+    .order('draw_month', { ascending: true })
+    .limit(6),
+
+  supabase.from('charity_contributions').select('amount'),
+
+  supabase.from('draws').select('id'),
+
+  supabase
+    .from('winners')
+    .select('id')
+    .eq('verification_status', 'pending'),
+]);
+
+const totalUsers = users?.length || 0;
+const activeSubscribers = activeUsers?.length || 0;
+const totalDraws = allDraws?.length || 0;
+const pendingWinners = pendingWinnersData?.length || 0;
 
       const totalCharityRaised = (contributions || []).reduce((s, c) => s + Number(c.amount), 0)
       const totalPrizePool = (draws || []).reduce((s, d) => s + Number(d.prize_pool_total), 0)
@@ -68,8 +89,8 @@ export default function AdminOverviewPage() {
   const statCards = [
     { label: 'Total Users', value: stats.totalUsers, icon: Users, color: 'text-lime', bg: 'bg-lime/10' },
     { label: 'Active Subscribers', value: stats.activeSubscribers, icon: Activity, color: 'text-lime', bg: 'bg-lime/10' },
-    { label: 'Total Prize Pool (All Time)', value: `£${stats.totalPrizePool.toFixed(2)}`, icon: Trophy, color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
-    { label: 'Charity Raised (All Time)', value: `£${stats.totalCharityRaised.toFixed(2)}`, icon: Heart, color: 'text-coral', bg: 'bg-coral/10' },
+    { label: 'Total Prize Pool (All Time)', value: `₹${stats.totalPrizePool.toFixed(2)}`, icon: Trophy, color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
+    { label: 'Charity Raised (All Time)', value: `₹${stats.totalCharityRaised.toFixed(2)}`, icon: Heart, color: 'text-coral', bg: 'bg-coral/10' },
     { label: 'Draws Published', value: stats.totalDraws, icon: TrendingUp, color: 'text-white/70', bg: 'bg-white/5' },
     { label: 'Pending Verifications', value: stats.pendingWinners, icon: DollarSign, color: stats.pendingWinners > 0 ? 'text-yellow-400' : 'text-white/40', bg: 'bg-yellow-400/10' },
   ]
@@ -106,11 +127,11 @@ export default function AdminOverviewPage() {
             <BarChart data={drawStats} barSize={32}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
               <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 12 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={v => `£${v}`} />
+              <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={v => `₹${v}`} />
               <Tooltip
                 contentStyle={{ background: '#1A1A1A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
                 labelStyle={{ color: '#fff' }}
-                formatter={(v: number) => [`£${v.toFixed(2)}`, 'Prize Pool']}
+                formatter={(v: number) => [`₹${v.toFixed(2)}`, 'Prize Pool']}
               />
               <Bar dataKey="pool" fill="#C8FF00" radius={[6, 6, 0, 0]} />
             </BarChart>

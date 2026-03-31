@@ -18,13 +18,49 @@ export default function AdminUsersPage() {
   const [editing, setEditing] = useState<string | null>(null)
   const [editData, setEditData] = useState<Partial<Profile>>({})
 
-  const fetchUsers = async () => {
-    const { data } = await supabase.from('profiles').select('*, charity:charities(name)').order('created_at', { ascending: false })
-    const list = (data as Profile[]) || []
-    setUsers(list)
-    setFiltered(list)
-    setLoading(false)
+const fetchUsers = async () => {
+  setLoading(true);
+
+  // 1. Fetch profiles only
+  const { data: usersData, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("Users fetch error:", error);
+    setLoading(false);
+    return;
   }
+
+  if (!usersData) {
+    setUsers([]);
+    setFiltered([]);
+    setLoading(false);
+    return;
+  }
+
+  // 2. Extract charity IDs
+  const charityIds = usersData
+    .map(u => u.charity_id)
+    .filter(Boolean);
+
+  // 3. Fetch charities separately
+  const { data: charities } = await supabase
+    .from('charities')
+    .select('id, name')
+    .in('id', charityIds);
+
+  // 4. Merge manually
+  const merged = usersData.map(user => ({
+    ...user,
+    charity: charities?.find(c => c.id === user.charity_id),
+  }));
+
+  setUsers(merged as Profile[]);
+  setFiltered(merged as Profile[]);
+  setLoading(false);
+};
 
   useEffect(() => { fetchUsers() }, [])
 

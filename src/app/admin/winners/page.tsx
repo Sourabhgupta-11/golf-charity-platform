@@ -6,7 +6,7 @@ import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { toast } from 'react-hot-toast'
-import { ShieldCheck, CheckCircle, XCircle, DollarSign, ExternalLink } from 'lucide-react'
+import { ShieldCheck, CheckCircle, XCircle, IndianRupee, ExternalLink } from 'lucide-react'
 import type { Winner, Profile, Draw } from '@/types'
 import { format } from 'date-fns'
 
@@ -22,13 +22,52 @@ export default function AdminWinnersPage() {
   const [processing, setProcessing] = useState<string | null>(null)
 
   const fetchWinners = async () => {
-    const { data } = await supabase
-      .from('winners')
-      .select('*, profile:profiles(full_name, email), draw:draws(draw_month, prize_pool_total)')
-      .order('created_at', { ascending: false })
-    setWinners((data as WinnerWithRelations[]) || [])
-    setLoading(false)
+  setLoading(true);
+
+  // 1. Fetch winners only
+  const { data: winnersData, error } = await supabase
+    .from('winners')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("Winners fetch error:", error);
+    setLoading(false);
+    return;
   }
+
+  if (!winnersData) {
+    setWinners([]);
+    setLoading(false);
+    return;
+  }
+
+  // 2. Extract IDs
+  const userIds = winnersData.map(w => w.user_id);
+  const drawIds = winnersData.map(w => w.draw_id);
+
+  // 3. Fetch profiles separately
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, full_name, email')
+    .in('id', userIds);
+
+  // 4. Fetch draws separately
+  const { data: draws } = await supabase
+    .from('draws')
+    .select('id, draw_month, prize_pool_total')
+    .in('id', drawIds);
+
+  // 5. Merge manually
+  const merged = winnersData.map(w => ({
+    ...w,
+    profile: profiles?.find(p => p.id === w.user_id),
+    draw: draws?.find(d => d.id === w.draw_id),
+  }));
+
+  setWinners(merged as WinnerWithRelations[]);
+  setLoading(false);
+};
 
   useEffect(() => { fetchWinners() }, [])
 
@@ -131,7 +170,7 @@ export default function AdminWinnersPage() {
                     <div>
                       <p className="text-white/30 text-xs mb-0.5">Prize Amount</p>
                       <p className="text-2xl font-black text-lime" style={{ fontFamily: 'var(--font-mono)' }}>
-                        £{Number(winner.prize_amount).toFixed(2)}
+                        ₹{Number(winner.prize_amount).toFixed(2)}
                       </p>
                     </div>
                     <div>
@@ -174,7 +213,7 @@ export default function AdminWinnersPage() {
                   {winner.verification_status === 'approved' && winner.payment_status === 'pending' && (
                     <Button size="sm" onClick={() => updateStatus(winner.id, 'payment_status', 'paid')}
                       loading={processing === winner.id + 'payment_status'}>
-                      <DollarSign size={13} />Mark Paid
+                      <IndianRupee size={13} />Mark Paid
                     </Button>
                   )}
 

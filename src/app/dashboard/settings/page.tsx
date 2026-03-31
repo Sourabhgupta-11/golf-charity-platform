@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import Card from '@/components/ui/Card'
@@ -14,7 +15,35 @@ export default function SettingsPage() {
   const [name, setName] = useState(profile?.full_name || '')
   const [saving, setSaving] = useState(false)
   const [cancelLoading, setCancelLoading] = useState(false)
+  const router = useRouter();
 
+
+const handleDeleteAccount = async () => {
+  const confirmed = window.confirm(
+    "Are you sure? This cannot be undone."
+  );
+  if (!confirmed) return;
+
+  try {
+    // 🔥 get session token
+    const { data: { session } } = await supabase.auth.getSession();
+
+    const res = await fetch('/api/delete-account', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session?.access_token}`,
+      },
+    });
+
+    if (!res.ok) throw new Error();
+
+    toast.success('Account deleted');
+    router.push('/');
+
+  } catch {
+    toast.error('Failed to delete account');
+  }
+};
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!profile) return
@@ -130,10 +159,13 @@ export default function SettingsPage() {
           <p className="text-white/40 text-sm mb-4">
             Permanently delete your account and all data. This cannot be undone.
           </p>
-          <Button variant="danger" size="sm"
-            onClick={() => toast.error('Contact support@greenloop.in to delete your account.')}>
-            Delete Account
-          </Button>
+          <button
+  onClick={handleDeleteAccount}
+  className="text-coral hover:text-coral/80"
+>
+  Delete Account
+</button>
+
         </Card>
       </div>
     </div>

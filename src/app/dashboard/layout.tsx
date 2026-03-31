@@ -19,19 +19,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter()
   const pathname = usePathname()
 
-  useEffect(() => {
-    if (!loading && !user) router.push('/auth/login')
-  }, [user, loading, router])
+useEffect(() => {
+  if (loading) return;
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="animate-spin text-lime" size={32} />
-      </div>
-    )
+  if (!user) {
+    router.push('/auth/login');
+    return;
   }
 
-  if (!user) return null
+  if (profile?.role === 'admin') {
+    router.push('/admin');
+  }
+
+}, [user, profile, loading, router]);
+
+if (loading) {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <Loader2 className="animate-spin text-lime" size={32} />
+    </div>
+  );
+}
+
+if (!user) return null;
+
+if (profile?.role === 'admin') return null;
 
   return (
     <div className="min-h-screen flex">

@@ -16,7 +16,7 @@ export default function CharitiesPreview() {
       .select('*')
       .eq('is_active', true)
       .limit(3)
-      .then(({ data }) => { if (data) setCharities(data as Charity[]) })
+      .then(({ data }: { data: unknown }) => { if (data) setCharities(data as Charity[]) })
   }, [])
 
   const placeholders = [

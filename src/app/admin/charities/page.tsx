@@ -7,7 +7,7 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Badge from '@/components/ui/Badge'
 import { toast } from 'react-hot-toast'
-import { Heart, Plus, Edit2, Trash2, X, Save, Star } from 'lucide-react'
+import {Plus, Edit2, Trash2, X, Save, Star } from 'lucide-react'
 import type { Charity } from '@/types'
 
 const emptyForm = { name: '', slug: '', description: '', short_description: '', image_url: '', website_url: '', is_featured: false }
@@ -20,9 +20,19 @@ export default function AdminCharitiesPage() {
   const [saving, setSaving] = useState(false)
 
   const fetchCharities = async () => {
-    const { data } = await supabase.from('charities').select('*').order('created_at', { ascending: false })
-    setCharities((data as Charity[]) || [])
+  const { data, error } = await supabase
+    .from('charities')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("Charities fetch error:", error);
+    setCharities([]);
+    return;
   }
+
+  setCharities((data as Charity[]) || []);
+};
 
   useEffect(() => { fetchCharities() }, [])
 
@@ -146,7 +156,7 @@ export default function AdminCharitiesPage() {
                   {!charity.is_active && <Badge variant="coral">Inactive</Badge>}
                 </div>
                 <p className="text-white/40 text-xs">{charity.short_description}</p>
-                <p className="text-lime text-xs font-mono mt-1">£{Number(charity.total_raised).toFixed(2)} raised</p>
+                <p className="text-lime text-xs font-mono mt-1">₹{Number(charity.total_raised).toFixed(2)} raised</p>
               </div>
             </div>
             <div className="flex items-center gap-2">

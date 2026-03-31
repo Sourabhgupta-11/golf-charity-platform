@@ -14,18 +14,32 @@ const navItems = [
   { href: '/admin/winners', label: 'Winners', icon: ShieldCheck },
 ]
 
+
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, profile, loading, signOut } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
 
-  useEffect(() => {
-    if (!loading) {
-      if (!user) router.push('/auth/login')
-      else if (profile && profile.role !== 'admin') router.push('/dashboard')
-    }
-  }, [user, profile, loading, router])
+  const handleSignOut = async () => {
+  await signOut();
+  router.push('/auth/login');
+};
+useEffect(() => {
+  if (loading) return;
 
+  if (!user) {
+    router.push('/auth/login');
+    return;
+  }
+
+  if (!profile) return; // wait until profile loads
+
+  if (profile.role !== 'admin') {
+    router.push('/dashboard');
+  }
+
+}, [user, profile, loading, router]);
   if (loading || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -65,11 +79,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         <div className="space-y-1">
-          <Link href="/dashboard"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/30 hover:text-white hover:bg-white/5 transition-all">
-            <Home size={16} />User Dashboard
-          </Link>
-          <button onClick={signOut}
+          <button onClick={handleSignOut}
             className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/30 hover:text-coral hover:bg-coral/5 transition-all w-full">
             <LogOut size={16} />Sign Out
           </button>

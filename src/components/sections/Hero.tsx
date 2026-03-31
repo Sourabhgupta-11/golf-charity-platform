@@ -110,7 +110,7 @@ export default function Hero() {
         <div className="grid grid-cols-3 gap-4 max-w-lg mx-auto">
           {[
             { icon: Heart, label: 'Charity Partners', value: '4+' },
-            { icon: Trophy, label: 'Monthly Prize Pool', value: '£2,400' },
+            { icon: Trophy, label: 'Monthly Prize Pool', value: '₹2.52 lakh' },
             { icon: BarChart2, label: 'Scores Logged', value: '8,200+' },
           ].map(({ icon: Icon, label, value }) => (
             <div key={label} className="glass rounded-2xl p-4 text-center">

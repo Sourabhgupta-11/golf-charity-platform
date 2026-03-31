@@ -1,3 +1,8 @@
+const PRIZE_SPLIT = {
+  FIVE_MATCH: 0.4,
+  FOUR_MATCH: 0.35,
+  THREE_MATCH: 0.25,
+};
 
 /** Generate 5 unique random numbers between 1-45 */
 export function generateRandomDraw(): number[] {
@@ -55,7 +60,7 @@ export function getPrizeTier(matchCount: number): '5-match' | '4-match' | '3-mat
 }
 
 /** Calculate prize pool distribution */
-/*export function calculatePrizePools(
+export function calculatePrizePools(
   totalPool: number,
   jackpotCarryOver: number = 0
 ): { fiveMatch: number; fourMatch: number; threeMatch: number } {
@@ -64,7 +69,7 @@ export function getPrizeTier(matchCount: number): '5-match' | '4-match' | '3-mat
     fourMatch: totalPool * PRIZE_SPLIT.FOUR_MATCH,
     threeMatch: totalPool * PRIZE_SPLIT.THREE_MATCH,
   }
-}*/
+}
 
 /** Calculate prize per winner in a tier */
 export function prizePerWinner(tierPool: number, winnerCount: number): number {

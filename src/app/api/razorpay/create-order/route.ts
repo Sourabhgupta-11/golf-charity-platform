@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { razorpay, PLANS } from '@/lib/razorpay'
-import { supabaseAdmin } from '@/lib/supabase'
-import crypto from 'crypto'
+import { PLANS } from '@/lib/razorpay'
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,18 +10,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
     }
 
-    // Create a short receipt ID
-    const receipt = `rcpt_${crypto.randomBytes(6).toString('hex')}`
+    // Dynamically import razorpay — ensures it only runs server-side
+    const Razorpay = (await import('razorpay')).default
+    const razorpayInstance = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID!,
+      key_secret: process.env.RAZORPAY_KEY_SECRET!,
+    })
 
-    // Create Razorpay order
-    const order = await razorpay.orders.create({
+    // Use Node built-in crypto (no import needed in Node 18+)
+    const { randomBytes } = await import('crypto')
+    const receipt = `rcpt_${randomBytes(6).toString('hex')}`
+
+    const order = await razorpayInstance.orders.create({
       amount: planConfig.amount,
       currency: planConfig.currency,
       receipt,
-      notes: {
-        plan,
-        email,
-      },
+      notes: { plan, email },
     })
 
     return NextResponse.json({

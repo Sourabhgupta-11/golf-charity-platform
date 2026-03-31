@@ -10,6 +10,8 @@
 /.next/
 /out/
 
+README.md
+src/app/admin
 # production
 /build
 

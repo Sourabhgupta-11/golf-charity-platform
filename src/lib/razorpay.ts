@@ -15,7 +15,7 @@ export const PLANS = {
     intervalCount: 1,
   },
   yearly: {
-    amount: 749900,      // ₹7,499/year (≈25% off)
+    amount: 749900,      // ₹7,499/year (~25% off)
     currency: 'INR',
     label: 'Yearly',
     interval: 'yearly',
@@ -23,7 +23,7 @@ export const PLANS = {
   },
 }
 
-// Prize pool split constants — unchanged
+// Prize pool split constants
 export const PRIZE_SPLIT = {
   FIVE_MATCH: 0.40,
   FOUR_MATCH: 0.35,

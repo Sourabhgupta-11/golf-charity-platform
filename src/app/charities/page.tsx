@@ -106,7 +106,7 @@ export default function CharitiesPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-xs text-white/30">
                         <Heart size={12} className="text-coral" />
-                        <span>£{charity.total_raised.toLocaleString()} raised</span>
+                        <span>₹{charity.total_raised.toLocaleString()} raised</span>
                       </div>
                       <Link href={`/charities/${charity.slug}`}
                         className="text-sm text-lime hover:text-lime/80 font-medium transition-colors">

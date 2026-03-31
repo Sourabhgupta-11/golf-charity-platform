@@ -69,7 +69,7 @@ export default async function CharityDetailPage({ params }: { params: { slug: st
               <div className="glass rounded-2xl p-6">
                 <p className="text-white/40 text-xs uppercase tracking-widest mb-3">Total Raised</p>
                 <p className="text-4xl font-black text-lime mb-1" style={{ fontFamily: 'var(--font-mono)' }}>
-                  £{charity.total_raised.toLocaleString()}
+                  ₹{charity.total_raised.toLocaleString()}
                 </p>
                 <p className="text-white/30 text-xs">Through Greenloop subscriptions</p>
               </div>

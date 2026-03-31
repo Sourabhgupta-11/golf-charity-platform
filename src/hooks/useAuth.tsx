@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import type { Profile, Charity } from '@/types'
@@ -28,10 +28,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  // Prevent duplicate fetches on rapid auth state changes
+  const fetchingRef = useRef(false)
 
   const fetchProfile = useCallback(async (userId: string) => {
+    if (fetchingRef.current) return
+    fetchingRef.current = true
     try {
-      // Fetch profile WITHOUT join — avoids 500 from stale FK schema cache
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -39,36 +42,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single()
 
       if (profileError) {
-        console.error('Profile fetch error:', profileError.message, profileError.code)
+        console.error('Profile fetch error:', profileError.message)
         return
       }
-
       if (!profileData) return
 
-      // Fetch charity separately if user has one selected
+      // Fetch charity separately — avoids FK join 500 errors
       let charityData: Charity | null = null
       if (profileData.charity_id) {
-        const { data: cd, error: ce } = await supabase
+        const { data: cd } = await supabase
           .from('charities')
           .select('*')
           .eq('id', profileData.charity_id)
           .single()
-        if (!ce && cd) charityData = cd as Charity
+        if (cd) charityData = cd as Charity
       }
 
-      // Merge — same shape the rest of the app expects
       setProfile({ ...profileData, charity: charityData } as Profile)
-
     } catch (err) {
-      console.error('Unexpected profile fetch error:', err)
+      console.error('Profile fetch unexpected error:', err)
+    } finally {
+      fetchingRef.current = false
     }
   }, [])
 
   const refreshProfile = useCallback(async () => {
-    if (user) await fetchProfile(user.id)
+    if (user) {
+      fetchingRef.current = false // allow refresh to bypass the guard
+      await fetchProfile(user.id)
+    }
   }, [user, fetchProfile])
 
   useEffect(() => {
+    // Get initial session once
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
@@ -79,16 +85,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })
 
+    // Listen for sign-in / sign-out only — not token refresh events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session)
-        setUser(session?.user ?? null)
-        if (session?.user) {
-          await fetchProfile(session.user.id)
-        } else {
-          setProfile(null)
+      async (event, session) => {
+        // Only act on meaningful auth events, not silent token refreshes
+        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+          setSession(session)
+          setUser(session?.user ?? null)
+          if (session?.user) {
+            fetchingRef.current = false
+            await fetchProfile(session.user.id)
+          } else {
+            setProfile(null)
+          }
+          setLoading(false)
         }
-        setLoading(false)
       }
     )
 

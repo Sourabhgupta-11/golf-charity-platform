@@ -54,19 +54,20 @@ function SubscribeForm() {
     if (!validate()) return
     setLoading(true)
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { error: signUpError } = await supabase.auth.signUp({
         email: form.email,
         password: form.password,
         options: { data: { full_name: form.full_name } },
       })
+      if (signUpError) throw signUpError
 
-      if (error) throw error
-
-      // 👉 ADD THIS (IMPORTANT)
-      await supabase.auth.signInWithPassword({
+      // Sign in immediately so session is available for create-order
+      const { error: loginError } = await supabase.auth.signInWithPassword({
         email: form.email,
         password: form.password,
       })
+      if (loginError) throw loginError
+
       setStep('payment')
       toast.success('Account created! Now complete payment.')
     } catch (err: unknown) {
@@ -92,13 +93,23 @@ function SubscribeForm() {
       const loaded = await loadRazorpayScript()
       if (!loaded) throw new Error('Razorpay SDK failed to load. Check your internet connection.')
 
+      // Get fresh session token
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Session expired. Please refresh and try again.')
+
+      // Create order — pass plan only; route reads user from JWT
       const res = await fetch('/api/razorpay/create-order', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan, email: form.email }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ plan }),
       })
-      const { orderId, amount, currency, keyId, error } = await res.json()
-      if (error) throw new Error(error)
+      const orderData = await res.json()
+      if (orderData.error) throw new Error(orderData.error)
+
+      const { orderId, amount, currency, keyId } = orderData
 
       const rzp = new window.Razorpay({
         key: keyId,
@@ -108,22 +119,44 @@ function SubscribeForm() {
         description: `${plan === 'monthly' ? 'Monthly' : 'Yearly'} Subscription`,
         order_id: orderId,
         handler: async (response: RazorpayResponse) => {
-          const verifyRes = await fetch('/api/razorpay/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...response, plan, email: form.email }),
-          })
-          const result = await verifyRes.json()
-          if (result.success) {
-            toast.success('Payment successful! Welcome to Greenloop 🎉')
-            router.push('/dashboard?subscribed=true')
-          } else {
-            toast.error('Payment verification failed. Contact support.')
+          try {
+            // ── FIX: send plan + email + userId alongside Razorpay response ──
+            const verifyRes = await fetch('/api/razorpay/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                plan,             // ← was missing
+                email: form.email, // ← was missing
+                user_id: session.user.id, // ← extra safety for route
+              }),
+            })
+
+            const result = await verifyRes.json()
+
+            if (result.success) {
+              toast.success('Payment successful! Welcome to Greenloop 🎉')
+              router.replace('/dashboard?subscribed=true')
+              router.refresh()
+            } else {
+              toast.error(result.error || 'Payment verification failed. Contact support.')
+              setLoading(false)
+            }
+          } catch {
+            toast.error('Verification request failed. Contact support.')
+            setLoading(false)
           }
         },
         prefill: { name: form.full_name, email: form.email },
         theme: { color: '#C8FF00' },
-        modal: { ondismiss: () => { toast('Payment cancelled', { icon: '⚠️' }); setLoading(false) } },
+        modal: {
+          ondismiss: () => {
+            toast('Payment cancelled', { icon: '⚠️' })
+            setLoading(false)
+          },
+        },
       })
       rzp.open()
     } catch (err: unknown) {
@@ -238,7 +271,6 @@ function SubscribeForm() {
         </div>
       </div>
     </div>
-    
   )
 }
 

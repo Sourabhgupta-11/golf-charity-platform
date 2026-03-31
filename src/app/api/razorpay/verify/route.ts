@@ -10,9 +10,27 @@ export async function POST(req: NextRequest) {
       razorpay_signature,
       plan,
       email,
+      user_id, // extra field sent by subscribe page as a safety fallback
     } = await req.json()
 
-    // ── Verify signature ──────────────────────────────────────────
+    // ── 1. Validate required fields ──────────────────────────────
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return NextResponse.json(
+        { error: 'Missing Razorpay payment fields' },
+        { status: 400 }
+      )
+    }
+    if (!plan) {
+      return NextResponse.json({ error: 'Missing plan' }, { status: 400 })
+    }
+    if (!email && !user_id) {
+      return NextResponse.json(
+        { error: 'Missing user identifier (email or user_id)' },
+        { status: 400 }
+      )
+    }
+
+    // ── 2. Verify Razorpay signature ─────────────────────────────
     const body = razorpay_order_id + '|' + razorpay_payment_id
     const expectedSignature = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
@@ -20,10 +38,52 @@ export async function POST(req: NextRequest) {
       .digest('hex')
 
     if (expectedSignature !== razorpay_signature) {
+      console.error('Razorpay signature mismatch')
       return NextResponse.json({ error: 'Invalid payment signature' }, { status: 400 })
     }
 
-    // ── Activate subscription in DB ───────────────────────────────
+    const db = supabaseAdmin()
+
+    // ── 3. Find profile — prefer user_id (faster), fallback to email ──
+    let profileId: string | null = null
+    let charityId: string | null = null
+    let charityPercentage = 10
+
+    if (user_id) {
+      const { data: profile, error } = await db
+        .from('profiles')
+        .select('id, charity_id, charity_percentage')
+        .eq('id', user_id)
+        .single()
+
+      if (!error && profile) {
+        profileId = profile.id
+        charityId = profile.charity_id ?? null
+        charityPercentage = profile.charity_percentage ?? 10
+      }
+    }
+
+    // Fallback to email lookup
+    if (!profileId && email) {
+      const { data: profile, error } = await db
+        .from('profiles')
+        .select('id, charity_id, charity_percentage')
+        .eq('email', email)
+        .single()
+
+      if (!error && profile) {
+        profileId = profile.id
+        charityId = profile.charity_id ?? null
+        charityPercentage = profile.charity_percentage ?? 10
+      }
+    }
+
+    if (!profileId) {
+      console.error('Profile not found. email:', email, 'user_id:', user_id)
+      return NextResponse.json({ error: 'User profile not found' }, { status: 404 })
+    }
+
+    // ── 4. Calculate subscription end date ────────────────────────
     const now = new Date()
     const endsAt = new Date(now)
     if (plan === 'yearly') {
@@ -32,62 +92,70 @@ export async function POST(req: NextRequest) {
       endsAt.setMonth(endsAt.getMonth() + 1)
     }
 
-    const db = supabaseAdmin()
-
-    const { error } = await db
+    // ── 5. Activate subscription ──────────────────────────────────
+    const { error: updateError } = await db
       .from('profiles')
       .update({
         subscription_status: 'active',
         subscription_plan: plan,
-        subscription_id: razorpay_payment_id,   // store payment ID as reference
+        subscription_id: razorpay_payment_id,
         subscription_ends_at: endsAt.toISOString(),
         updated_at: now.toISOString(),
       })
-      .eq('email', email)
+      .eq('id', profileId)
 
-    if (error) throw error
+    if (updateError) {
+      console.error('Subscription update failed:', updateError)
+      return NextResponse.json(
+        { error: 'Failed to activate subscription' },
+        { status: 500 }
+      )
+    }
 
-    // ── Log the payment event ─────────────────────────────────────
-    await db.from('subscription_events').insert({
-      razorpay_event_id: razorpay_payment_id,      // reuse column for payment ID
-      event_type: 'razorpay.payment.captured',
-      payload: {
-        order_id: razorpay_order_id,
-        payment_id: razorpay_payment_id,
-        plan,
-        email,
-      },
-    })
-
-    // ── Record charity contribution ───────────────────────────────
-    const { data: profile } = await db
-      .from('profiles')
-      .select('id, charity_id, charity_percentage, subscription_plan')
-      .eq('email', email)
-      .single()
-
-    if (profile?.charity_id) {
-      const monthlyFee = plan === 'yearly' ? 7499 / 12 : 829   // in ₹
-      const amount = (profile.charity_percentage / 100) * monthlyFee
-
-      await db.from('charity_contributions').insert({
-        user_id: profile.id,
-        charity_id: profile.charity_id,
-        amount,
-        contribution_month: now.toISOString().slice(0, 8) + '01',
-        razorpay_payment_id: razorpay_payment_id,
+    // ── 6. Log payment event — best effort ────────────────────────
+    try {
+      await db.from('subscription_events').insert({
+        user_id: profileId,
+        razorpay_event_id: razorpay_payment_id,
+        event_type: 'razorpay.payment.captured',
+        payload: {
+          order_id: razorpay_order_id,
+          payment_id: razorpay_payment_id,
+          plan,
+          email,
+        },
       })
+    } catch (e) {
+      console.warn('Event log failed (non-fatal):', e)
+    }
 
-      // Increment charity total_raised
-      await db.rpc('increment_charity_total', {
-        charity_id: profile.charity_id,
-        amount,
-      })
+    // ── 7. Charity contribution — best effort ─────────────────────
+    try {
+      if (charityId) {
+        const monthlyFee = plan === 'yearly' ? 7499 / 12 : 829
+        const amount =
+          Math.round(((charityPercentage || 10) / 100) * monthlyFee * 100) / 100
+
+        await db.from('charity_contributions').insert({
+          user_id: profileId,
+          charity_id: charityId,
+          amount,
+          contribution_month: now.toISOString().slice(0, 8) + '01',
+          razorpay_payment_id: razorpay_payment_id,
+        })
+
+        await db.rpc('increment_charity_total', {
+          p_charity_id: charityId,
+          p_amount: amount,
+        })
+      }
+    } catch (e) {
+      console.warn('Charity contribution failed (non-fatal):', e)
     }
 
     return NextResponse.json({ success: true })
   } catch (err: unknown) {
-    console.error('Payment verify error:', err)
+    console.error('Verify route error:', err)
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Verification failed' },
       { status: 500 }

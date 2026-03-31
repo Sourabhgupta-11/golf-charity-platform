@@ -1,57 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { supabaseAdmin } from '@/lib/supabase'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 
 export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get('authorization');
+    // Verify the user is authenticated
+    const supabase = createRouteHandlerClient({ cookies })
+    const { data: { session } } = await supabase.auth.getSession()
 
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const token = authHeader.replace('Bearer ', '');
+    const userId = session.user.id
+    const db = supabaseAdmin()
 
-    // 🔥 Create client with user token
-    const supabaseUser = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      }
-    );
+    // Delete all user data in correct order (respect FK constraints)
+    // 1. Delete draw entries
+    await db.from('draw_entries').delete().eq('user_id', userId)
 
-    const {
-      data: { user },
-    } = await supabaseUser.auth.getUser();
+    // 2. Delete winners records
+    await db.from('winners').delete().eq('user_id', userId)
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // 3. Delete golf scores (trigger handles this on profile delete, but be explicit)
+    await db.from('golf_scores').delete().eq('user_id', userId)
+
+    // 4. Delete charity contributions
+    await db.from('charity_contributions').delete().eq('user_id', userId)
+
+    // 5. Delete subscription events
+    await db.from('subscription_events').delete().eq('user_id', userId)
+
+    // 6. Delete profile (ON DELETE CASCADE handles golf_scores, but we already cleaned up)
+    await db.from('profiles').delete().eq('id', userId)
+
+    // 7. Delete from auth.users — this is the final step, invalidates all sessions
+    const { error: authDeleteError } = await db.auth.admin.deleteUser(userId)
+    if (authDeleteError) {
+      console.error('Auth user delete error:', authDeleteError)
+      // Profile is already deleted — log but don't fail the response
+      // The user is effectively gone from the app
     }
 
-    const userId = user.id;
-
-    // 🔥 Admin client (service role)
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
-    // delete data
-    await supabaseAdmin.from('profiles').delete().eq('id', userId);
-    await supabaseAdmin.from('draw_entries').delete().eq('user_id', userId);
-    await supabaseAdmin.from('winners').delete().eq('user_id', userId);
-    await supabaseAdmin.from('charity_contributions').delete().eq('user_id', userId);
-
-    await supabaseAdmin.auth.admin.deleteUser(userId);
-
-    return NextResponse.json({ success: true });
-
-  } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+    return NextResponse.json({ success: true })
+  } catch (err: unknown) {
+    console.error('Delete account error:', err)
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Account deletion failed' },
+      { status: 500 }
+    )
   }
 }
